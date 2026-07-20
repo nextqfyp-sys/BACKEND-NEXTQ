@@ -1,0 +1,149 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  student
+  admin
+  content_moderator
+
+  @@map("user_role")
+}
+
+model User {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  wallet_address       String?  @unique   // null for admin/content_moderator credential accounts
+  email                String?  @unique
+  username             String?  @unique    // admin / content_moderator login name
+  password_hash        String?             // bcrypt hash — only set for admin/mod accounts
+  role                 UserRole @default(student)
+  signup_bonus_granted Boolean  @default(false)
+  created_at           DateTime @default(now()) @db.Timestamptz
+  updated_at           DateTime @updatedAt @db.Timestamptz
+
+  balance            Balance?
+  quizzes            Quiz[]
+  papers             Paper[]
+  uploads            Upload[]
+  sent_txs           Transaction[]    @relation("FromUser")
+  received_txs       Transaction[]    @relation("ToUser")
+  sent_transfers     TokenTransfer[]  @relation("SenderTransfer")
+  received_transfers TokenTransfer[]  @relation("RecipientTransfer")
+  refresh_tokens     RefreshToken[]
+
+  @@map("users")
+}
+
+model Balance {
+  user_id       String   @id @db.Uuid
+  token_balance BigInt   @default(0)
+  updated_at    DateTime @updatedAt @db.Timestamptz
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("balances")
+}
+
+model RefreshToken {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String   @db.Uuid
+  token_hash String   @unique
+  expires_at DateTime @db.Timestamptz
+  revoked    Boolean  @default(false)
+  created_at DateTime @default(now()) @db.Timestamptz
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([token_hash])
+  @@map("refresh_tokens")
+}
+
+model Quiz {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id      String   @db.Uuid
+  subject      String
+  questions    Json
+  answers      Json?
+  score        Decimal? @db.Decimal(5, 2)
+  tokens_spent BigInt   @default(5)
+  created_at   DateTime @default(now()) @db.Timestamptz
+
+  user         User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, created_at(sort: Desc)])
+  @@map("quizzes")
+}
+
+model Paper {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id       String   @db.Uuid
+  subject       String
+  paper_payload Json?
+  download_url  String?
+  tokens_spent  BigInt   @default(5)
+  created_at    DateTime @default(now()) @db.Timestamptz
+
+  user         User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, created_at(sort: Desc)])
+  @@map("papers")
+}
+
+model Upload {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id       String   @db.Uuid
+  filename      String
+  storage_path  String
+  status        String   @default("processing")
+  ai_score      Decimal? @db.Decimal(5, 2)
+  reward_tokens BigInt   @default(0)
+  created_at    DateTime @default(now()) @db.Timestamptz
+  updated_at    DateTime @updatedAt @db.Timestamptz
+
+  user         User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, created_at(sort: Desc)])
+  @@map("uploads")
+}
+
+model Transaction {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  from_user_id String?  @db.Uuid
+  to_user_id   String?  @db.Uuid
+  amount       BigInt
+  tx_type      String
+  reference_id String?  @db.Uuid  // stores quiz/paper/upload id — not a FK (polymorphic)
+  note         String?
+  created_at   DateTime @default(now()) @db.Timestamptz
+
+  from_user    User?          @relation("FromUser", fields: [from_user_id], references: [id], onDelete: SetNull)
+  to_user      User?          @relation("ToUser", fields: [to_user_id], references: [id], onDelete: SetNull)
+  token_transfers TokenTransfer[]
+
+  @@index([from_user_id, created_at(sort: Desc)])
+  @@index([to_user_id, created_at(sort: Desc)])
+  @@map("transactions")
+}
+
+model TokenTransfer {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sender_user_id     String   @db.Uuid
+  recipient_user_id  String   @db.Uuid
+  amount             BigInt
+  transaction_id     String?  @db.Uuid
+  created_at         DateTime @default(now()) @db.Timestamptz
+
+  sender      User         @relation("SenderTransfer", fields: [sender_user_id], references: [id], onDelete: Cascade)
+  recipient   User         @relation("RecipientTransfer", fields: [recipient_user_id], references: [id], onDelete: Cascade)
+  transaction Transaction? @relation(fields: [transaction_id], references: [id], onDelete: SetNull)
+
+  @@index([sender_user_id, created_at(sort: Desc)])
+  @@index([recipient_user_id, created_at(sort: Desc)])
+  @@map("token_transfers")
+}
