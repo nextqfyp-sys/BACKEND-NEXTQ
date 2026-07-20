@@ -22,6 +22,7 @@ const morgan = require('morgan');
 const { corsOptions } = require('./config/cors');
 const logger = require('./config/logger');
 const { globalErrorHandler, notFoundHandler } = require('./middleware/errorHandler');
+const { getRedisStatus } = require('./config/redis');
 
 // Route imports
 const authRoutes = require('./routes/auth.routes');
@@ -55,8 +56,31 @@ app.use(
 );
 
 // ── Health check (no auth — used by Railway/K8s probes) ───────────────────
+// This reports the app as healthy as long as the process is up and serving
+// requests — Redis availability is reported separately (see below) so that
+// a slow/down Redis never causes the platform to think the whole app is
+// unhealthy and restart it.
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// ── Detailed readiness check — reports each dependency independently ──────
+// Redis status is informational only: `redis.status` can be "connected",
+// "connecting", "disconnected" or "error" without affecting the overall
+// HTTP status code, since the app can serve most traffic without Redis.
+app.get('/health/ready', (_req, res) => {
+  const redis = getRedisStatus();
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    dependencies: {
+      redis: {
+        status: redis.status,
+        available: redis.status === 'connected',
+        ...(redis.lastError ? { lastError: redis.lastError } : {}),
+      },
+    },
+  });
 });
 
 // ── API Routes ────────────────────────────────────────────────────────────
