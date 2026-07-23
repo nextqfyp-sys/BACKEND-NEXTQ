@@ -1,4 +1,4 @@
-'use strict';
+"use strict";
 
 /**
  * AI service — proxies to the FastAPI RAG backend on HuggingFace Spaces.
@@ -21,15 +21,17 @@
  * service is cold-starting or unreachable.
  */
 
-const axios = require('axios');
-const FormData = require('form-data');
-const logger = require('../config/logger');
+const axios = require("axios");
+const FormData = require("form-data");
+const logger = require("../config/logger");
 
 // ---------------------------------------------------------------------------
 // Base URL
 // ---------------------------------------------------------------------------
 
-const HF_BASE = (process.env.HF_BASE_URL || 'https://ekrash1234-github-deploy-token.hf.space').replace(/\/$/, '');
+const HF_BASE = (
+  process.env.HF_BASE_URL || "https://ekrash1234-github-deploy-token.hf.space"
+).replace(/\/$/, "");
 const HF_TOKEN = process.env.HF_API_TOKEN;
 
 // ---------------------------------------------------------------------------
@@ -37,8 +39,8 @@ const HF_TOKEN = process.env.HF_API_TOKEN;
 // ---------------------------------------------------------------------------
 
 function buildHeaders(extra = {}) {
-  const h = { 'Content-Type': 'application/json', ...extra };
-  if (HF_TOKEN) h['Authorization'] = `Bearer ${HF_TOKEN}`;
+  const h = { "Content-Type": "application/json", ...extra };
+  if (HF_TOKEN) h["Authorization"] = `Bearer ${HF_TOKEN}`;
   return h;
 }
 
@@ -54,7 +56,7 @@ async function postJson(path, data) {
 async function getJson(path) {
   const url = `${HF_BASE}${path}`;
   const headers = {};
-  if (HF_TOKEN) headers['Authorization'] = `Bearer ${HF_TOKEN}`;
+  if (HF_TOKEN) headers["Authorization"] = `Bearer ${HF_TOKEN}`;
   const response = await axios.get(url, { headers, timeout: 30_000 });
   return response.data;
 }
@@ -77,48 +79,50 @@ async function getJson(path) {
  */
 async function generateVerifiedQuiz(params = {}) {
   const payload = {
-    country:        params.country        ?? null,
-    category:       params.category       ?? null,
-    class:          params.class_name     ?? params.class ?? null,
-    subject:        params.subject        ?? null,
+    country: params.country ?? null,
+    category: params.category ?? null,
+    class: params.class_name ?? params.class ?? null,
+    subject: params.subject ?? null,
     number_of_mcqs: params.number_of_mcqs ?? 10,
-    preference:     params.preference     ?? null,
+    preference: params.preference ?? null,
   };
 
   try {
-    const data = await postJson('/verified/generate-quiz', payload);
+    const data = await postJson("/verified/generate-quiz", payload);
     const mcqs = data.mcqs ?? [];
     if (!Array.isArray(mcqs) || mcqs.length === 0) {
-      throw new Error('Empty mcqs array from AI');
+      throw new Error("Empty mcqs array from AI");
     }
-    logger.info(`ai: quiz generated subject="${params.subject}" category="${params.category}" (${mcqs.length} MCQs)`);
+    logger.info(
+      `ai: quiz generated subject="${params.subject}" category="${params.category}" (${mcqs.length} MCQs)`,
+    );
     return { mcqs };
   } catch (err) {
     logger.warn(`ai: generateVerifiedQuiz failed — fallback: ${err.message}`);
-    const subject = params.subject ?? 'General';
+    const subject = params.subject ?? "General";
     return {
       mcqs: [
         {
           id: 1,
           prompt: `Sample ${subject} question 1`,
           options: [
-            { id: 'A', label: 'Option A' },
-            { id: 'B', label: 'Option B' },
-            { id: 'C', label: 'Option C' },
-            { id: 'D', label: 'Option D' },
+            { id: "A", label: "Option A" },
+            { id: "B", label: "Option B" },
+            { id: "C", label: "Option C" },
+            { id: "D", label: "Option D" },
           ],
-          answer: 'A',
+          answer: "A",
         },
         {
           id: 2,
           prompt: `Sample ${subject} question 2`,
           options: [
-            { id: 'A', label: 'Option A' },
-            { id: 'B', label: 'Option B' },
-            { id: 'C', label: 'Option C' },
-            { id: 'D', label: 'Option D' },
+            { id: "A", label: "Option A" },
+            { id: "B", label: "Option B" },
+            { id: "C", label: "Option C" },
+            { id: "D", label: "Option D" },
           ],
-          answer: 'B',
+          answer: "B",
         },
       ],
     };
@@ -145,20 +149,23 @@ async function generateVerifiedQuiz(params = {}) {
  */
 async function generateVerifiedPaper(params) {
   const payload = {
-    class:           params.class_name ?? params.class ?? '',
-    subject:         params.subject    ?? '',
-    country:         params.country    ?? null,
-    category:        params.category   ?? null,
-    mcqs:            params.mcqs            ?? 10,
+    class: params.class_name ?? params.class ?? "",
+    subject: params.subject ?? "",
+    country: params.country ?? null,
+    category: params.category ?? null,
+    mcqs: params.mcqs ?? 10,
     short_questions: params.short_questions ?? 5,
-    long_questions:  params.long_questions  ?? 3,
-    preference:      params.preference      ?? null,
+    long_questions: params.long_questions ?? 3,
+    preference: params.preference ?? null,
   };
 
   try {
-    const data = await postJson('/verified/generate-paper/boards', payload);
-    if (!data || typeof data !== 'object') throw new Error('Invalid response from AI');
-    logger.info(`ai: verified paper generated subject="${params.subject}" category="${params.category}"`);
+    const data = await postJson("/verified/generate-paper/boards", payload);
+    if (!data || typeof data !== "object")
+      throw new Error("Invalid response from AI");
+    logger.info(
+      `ai: verified paper generated subject="${params.subject}" category="${params.category}"`,
+    );
     return data;
   } catch (err) {
     logger.warn(`ai: generateVerifiedPaper failed — fallback: ${err.message}`);
@@ -189,23 +196,28 @@ async function generateVerifiedPaper(params) {
  */
 async function generateUnverifiedPaper(params) {
   const payload = {
-    country:         params.country    ?? '',
-    class:           params.class_name ?? params.class ?? '',
-    subject:         params.subject    ?? '',
-    category:        params.category   ?? null,
-    mcqs:            params.mcqs            ?? 10,
+    country: params.country ?? "",
+    class: params.class_name ?? params.class ?? "",
+    subject: params.subject ?? "",
+    category: params.category ?? null,
+    mcqs: params.mcqs ?? 10,
     short_questions: params.short_questions ?? 5,
-    long_questions:  params.long_questions  ?? 3,
-    preference:      params.preference      ?? null,
+    long_questions: params.long_questions ?? 3,
+    preference: params.preference ?? null,
   };
 
   try {
-    const data = await postJson('/unverified/generate-paper', payload);
-    if (!data || typeof data !== 'object') throw new Error('Invalid response from AI');
-    logger.info(`ai: unverified paper generated country="${params.country}" category="${params.category}"`);
+    const data = await postJson("/unverified/generate-paper", payload);
+    if (!data || typeof data !== "object")
+      throw new Error("Invalid response from AI");
+    logger.info(
+      `ai: unverified paper generated country="${params.country}" category="${params.category}"`,
+    );
     return data;
   } catch (err) {
-    logger.warn(`ai: generateUnverifiedPaper failed — fallback: ${err.message}`);
+    logger.warn(
+      `ai: generateUnverifiedPaper failed — fallback: ${err.message}`,
+    );
     return { mcqs: [], short_questions: [], long_questions: [] };
   }
 }
@@ -216,7 +228,7 @@ async function generateUnverifiedPaper(params) {
  */
 async function getUnverifiedClasses() {
   try {
-    const data = await getJson('/unverified/classes');
+    const data = await getJson("/unverified/classes");
     return data; // { hierarchy: {...} }
   } catch (err) {
     logger.warn(`ai: getUnverifiedClasses failed — fallback: ${err.message}`);
@@ -240,32 +252,51 @@ async function getUnverifiedClasses() {
  * @param {string} [category]
  * @returns {{ accepted: boolean, score: number, reason: string }}
  */
-async function scoreUpload(fileBuffer, filename, country = '', className = '', subject = '', category = '') {
+async function scoreUpload(
+  fileBuffer,
+  filename,
+  country = "",
+  className = "",
+  subject = "",
+  category = "",
+) {
   try {
     const form = new FormData();
-    form.append('file', fileBuffer, { filename, contentType: 'application/pdf' });
-    form.append('country',  country);
-    form.append('class',    className);
-    form.append('subject',  subject);
-    if (category) form.append('category', category);
+    form.append("file", fileBuffer, {
+      filename,
+      contentType: "application/pdf",
+    });
+    form.append("country", country);
+    form.append("class", className);
+    form.append("subject", subject);
+    if (category) form.append("category", category);
 
     const url = `${HF_BASE}/unverified/upload-paper`;
     const headers = { ...form.getHeaders() };
-    if (HF_TOKEN) headers['Authorization'] = `Bearer ${HF_TOKEN}`;
+    if (HF_TOKEN) headers["Authorization"] = `Bearer ${HF_TOKEN}`;
 
     const response = await axios.post(url, form, { headers, timeout: 120_000 });
     const data = response.data;
 
-    const accepted      = Boolean(data.accepted);
-    const ai_score      = typeof data.score === 'number' ? data.score : 0;
-    // Derive reward_tokens from score: 0–100 score → 0–50 tokens
-    const reward_tokens = Math.min(Math.max(Math.round(ai_score / 2), 0), 50);
+    const accepted = Boolean(data.accepted);
+    const ai_score = typeof data.score === "number" ? data.score : 0;
+    // AI returns score 0–10; reward_tokens mirrors the score directly (max 10 COIN)
+    const reward_tokens = accepted
+      ? Math.min(Math.max(Math.round(ai_score), 0), 10)
+      : 0;
 
-    logger.info(`ai: scoreUpload filename="${filename}" accepted=${accepted} score=${ai_score} reward=${reward_tokens}`);
-    return { accepted, ai_score, reward_tokens, reason: data.reason ?? '' };
+    logger.info(
+      `ai: scoreUpload filename="${filename}" accepted=${accepted} score=${ai_score} reward=${reward_tokens}`,
+    );
+    return { accepted, ai_score, reward_tokens, reason: data.reason ?? "" };
   } catch (err) {
     logger.warn(`ai: scoreUpload failed — fallback: ${err.message}`);
-    return { accepted: false, ai_score: 0, reward_tokens: 0, reason: 'Upload scoring unavailable' };
+    return {
+      accepted: false,
+      ai_score: 0,
+      reward_tokens: 0,
+      reason: "Upload scoring unavailable",
+    };
   }
 }
 
@@ -276,7 +307,13 @@ module.exports = {
   getUnverifiedClasses,
   scoreUpload,
   // Legacy aliases kept so existing callers don't break during transition
-  generateCambridgePaper: (p) => generateVerifiedPaper({ ...p, category: 'Cambridge' }),
-  generateBoardsPaper:    (p) => generateVerifiedPaper({ ...p, category: 'Punjab Boards' }),
-  generatePaper:          (subject, format) => generateVerifiedPaper({ subject, category: format === 'cambridge' ? 'Cambridge' : 'Punjab Boards' }),
+  generateCambridgePaper: (p) =>
+    generateVerifiedPaper({ ...p, category: "Cambridge" }),
+  generateBoardsPaper: (p) =>
+    generateVerifiedPaper({ ...p, category: "Punjab Boards" }),
+  generatePaper: (subject, format) =>
+    generateVerifiedPaper({
+      subject,
+      category: format === "cambridge" ? "Cambridge" : "Punjab Boards",
+    }),
 };
